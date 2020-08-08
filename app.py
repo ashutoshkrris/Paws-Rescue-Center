@@ -1,6 +1,6 @@
 """Flask Application for Paws Rescue Center."""
 from flask import Flask, render_template, abort
-from forms import SignUpForm, LoginForm
+from forms import SignUpForm, LoginForm, EditPetForm
 from flask import session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 
@@ -27,24 +27,49 @@ class User(db.Model):
 
 db.create_all()
 
-"""Information regarding the Pets in the System."""
-pets = [
-            {"id": 1, "name": "Nelly", "age": "5 weeks", "bio": "I am a tiny kitten rescued by the good people at Paws Rescue Center. I love squeaky toys and cuddles."},
-            {"id": 2, "name": "Yuki", "age": "8 months", "bio": "I am a handsome gentle-cat. I like to dress up in bow ties."},
-            {"id": 3, "name": "Basker", "age": "1 year", "bio": "I love barking. But, I love my friends more."},
-            {"id": 4, "name": "Mr. Furrkins", "age": "5 years", "bio": "Probably napping."}, 
-        ]
+# Create "team" user and add it to session
+team = User(full_name = "Pet Rescue Team", email = "team@petrescue.co", password = "adminpass")
+db.session.add(team)
 
-"""Information regarding the Users in the System."""
-users = [
-            {"id": 1, "full_name": "Pet Rescue Team", "email": "team@pawsrescue.co", "password": "adminpass"},
-            {"id": 2, "full_name": "Ashutosh Krishna", "email": "ask@ak.com", "password": "123456789"}
-        ]
+# Create all pets
+nelly = Pet(name = "Nelly", age = "5 weeks", bio = "I am a tiny kitten rescued by the good people at Paws Rescue Center. I love squeaky toys and cuddles.")
+yuki = Pet(name = "Yuki", age = "8 months", bio = "I am a handsome gentle-cat. I like to dress up in bow ties.")
+basker = Pet(name = "Basker", age = "1 year", bio = "I love barking. But, I love my friends more.")
+mrfurrkins = Pet(name = "Mr. Furrkins", age = "5 years", bio = "Probably napping.")
+
+# Add all pets to the session
+db.session.add(nelly)
+db.session.add(yuki)
+db.session.add(basker)
+db.session.add(mrfurrkins)
+
+# Commit changes in the session
+try:
+    db.session.commit()
+except Exception as e: 
+    db.session.rollback()
+finally:
+    db.session.close()
+
+# """Information regarding the Pets in the System."""
+# pets = [
+#             {"id": 1, "name": "Nelly", "age": "5 weeks", "bio": "I am a tiny kitten rescued by the good people at Paws Rescue Center. I love squeaky toys and cuddles."},
+#             {"id": 2, "name": "Yuki", "age": "8 months", "bio": "I am a handsome gentle-cat. I like to dress up in bow ties."},
+#             {"id": 3, "name": "Basker", "age": "1 year", "bio": "I love barking. But, I love my friends more."},
+#             {"id": 4, "name": "Mr. Furrkins", "age": "5 years", "bio": "Probably napping."}, 
+#         ]
+
+# """Information regarding the Users in the System."""
+# users = [
+#             {"id": 1, "full_name": "Pet Rescue Team", "email": "team@pawsrescue.co", "password": "adminpass"},
+#             {"id": 2, "full_name": "Ashutosh Krishna", "email": "ask@ak.com", "password": "123456789"}
+#         ]
 
 
 """1. Add a View Function for the Home page."""
 @app.route('/')
 def home():
+    pets = Pet.query.all()
     return render_template('home.html', pets=pets)
 
 """2. Add a View Function for the About page."""
@@ -55,10 +80,34 @@ def about():
 @app.route('/details/<int:pet_id>')
 def details(pet_id):
     """View function for Showing Details of Each Pet."""
-    pet = next((pet for pet in pets if pet["id"] == pet_id), None) 
+    # pet = next((pet for pet in pets if pet["id"] == pet_id), None)
+    form = EditPetForm()
+    pet = Pet.query.get(pet_id) 
     if pet is None: 
         abort(404, description="No pet was found with the given ID")
-    return render_template("details.html", pet = pet)
+    if form.validate_on_submit():
+        pet.name = form.name.data
+        pet.age = form.age.data
+        pet.bio = form.bio.data
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return render_template("details.html", pet = pet, form = form, message = "A Pet with this name already exists!")
+    return render_template("details.html", pet = pet, form = form)
+
+
+@app.route("/delete/<int:pet_id>")
+def delete_pet(pet_id):
+    pet = Pet.query.get(pet_id)
+    if pet is None: 
+        abort(404, description="No Pet was Found with the given ID")
+    db.session.delete(pet)
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+    return redirect(url_for('homepage', _scheme='https', _external=True))
 
 @app.route("/signup", methods=["POST", "GET"])
 def signup():
@@ -67,7 +116,7 @@ def signup():
     if form.validate_on_submit():
         # new_user = {"id": len(users)+1, "full_name": form.full_name.data, "email": form.email.data, "password": form.password.data}
         # users.append(new_user)
-        new_user = User(name=form.full_name.data, email=form.email.data, password=form.password.data)
+        new_user = User(full_name=form.full_name.data, email=form.email.data, password=form.password.data)
         db.session.add(new_user)
         try:
             db.session.commit()
