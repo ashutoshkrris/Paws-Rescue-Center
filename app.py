@@ -1,5 +1,5 @@
 """Flask Application for Paws Rescue Center."""
-from flask import Flask, render_template
+from flask import Flask, render_template, abort
 app = Flask(__name__)
 
 
@@ -21,6 +21,14 @@ def home():
 @app.route('/about')
 def about():
     return render_template('about.html')
+
+@app.route('/details/<int:pet_id>')
+def details(pet_id):
+    """View function for Showing Details of Each Pet."""
+    pet = next((pet for pet in pets if pet["id"] == pet_id), None) 
+    if pet is None: 
+        abort(404, description="No pet was found with the given ID")
+    return render_template("details.html", pet = pet)
 
 if __name__ == "__main__":
     """ """
