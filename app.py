@@ -1,20 +1,16 @@
 """Flask Application for Paws Rescue Center."""
-from flask import Flask
+from flask import Flask, render_template
 app = Flask(__name__)
 
 """1. Add a View Function for the Home page."""
 @app.route('/')
 def home():
-    return '<h1><center>Paws Rescue Center 🐾</center></h1>'
+    return render_template('home.html')
 
 """2. Add a View Function for the About page."""
 @app.route('/about')
 def about():
-    return """<h1><center>About Us:</center></h1><p>We are a non-profit organization working as an animal rescue.
-    We aim to help you connect with purrfect furbaby for you!
-    The animals you find at our website are rescued and rehabilitated animals.
-    Our mission is to promote the ideology of "Adopt, don't Shop"!</p>
-    """
+    return render_template('about.html')
 
 if __name__ == "__main__":
     """ """
