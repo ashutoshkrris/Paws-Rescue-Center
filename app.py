@@ -2,9 +2,30 @@
 from flask import Flask, render_template, abort
 from forms import SignUpForm, LoginForm
 from flask import session, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'EIwLfnXkzRtxyWA5UCMuZ80gDcHp317oOasi9ShrYNdljqJKvGeFPBT24Vb6Qm'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ashutosh-paws.db'
+db = SQLAlchemy(app)
+
+"""Model for Pets."""
+class Pet(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, unique=True)
+    age = db.Column(db.String)
+    bio = db.Column(db.String)
+    posted_by =  db.Column(db.String, db.ForeignKey('user.id'))
+
+"""Model for Users."""
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String)
+    email = db.Column(db.String, unique=True)
+    password = db.Column(db.String)
+    pets = db.relationship('Pet', backref = 'user')
+
+db.create_all()
 
 """Information regarding the Pets in the System."""
 pets = [
@@ -44,8 +65,18 @@ def signup():
     """View function for Showing Details of Each Pet.""" 
     form = SignUpForm()
     if form.validate_on_submit():
-        new_user = {"id": len(users)+1, "full_name": form.full_name.data, "email": form.email.data, "password": form.password.data}
-        users.append(new_user)
+        # new_user = {"id": len(users)+1, "full_name": form.full_name.data, "email": form.email.data, "password": form.password.data}
+        # users.append(new_user)
+        new_user = User(name=form.full_name.data, email=form.email.data, password=form.password.data)
+        db.session.add(new_user)
+        try:
+            db.session.commit()
+        except Exception as e:
+            print(e)
+            db.session.rollback()
+            return render_template("signup.html", message = "This user already exists! Try logging in..")
+        finally:
+            db.session.close()
         return render_template("signup.html", message = "Successfully signed up")
     return render_template("signup.html", form = form)
 
@@ -53,11 +84,13 @@ def signup():
 def login():
     form = LoginForm()
     if form.validate_on_submit():
-        user = next((user for user in users if user["email"] == form.email.data and user["password"] == form.password.data), None)
+        # user = next((user for user in users if user["email"] == form.email.data and user["password"] == form.password.data), None)
+        user = User.query.filter_by(email = form.email.data, password = form.password.data).first()
         if user is None:
             return render_template("login.html", form = form, message = "Wrong Credentials. Please Try Again.")
         else:
-            session['user'] = user
+            # session['user'] = user
+            session['user'] = user.id
             return render_template("login.html", message = "Successfully Logged In!")
     return render_template("login.html", form = form)
 
